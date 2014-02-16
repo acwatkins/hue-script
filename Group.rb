@@ -2,25 +2,14 @@
 
 require_relative 'Light'
 
-class Room
-	def initialize
+class Group < Light
+	def initialize(name)
+		super(name, 0)
 		@lights = Array.new;
 	end
 
 	def addLight(light)
 		@lights << light
-	end
-
-	def isOn=(value)
-		@isOn = value
-	end
-
-	def brightness=(value)
-		@brightness = value
-	end
-	
-	def colorTemperature=(value)
-		@colorTemperature = value
 	end
 
 	def updateState
