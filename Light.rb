@@ -18,9 +18,6 @@ class Light
 		@brightness = 200
 		@colorTemperature = CT_READING
 		@isOn = false
-		@baseUri = 'http://huebridge.lan/api/newdeveloper/lights/'
-		@baseUri << @index.to_s
-		puts @baseUri
 	end
 
 	def name
@@ -37,11 +34,5 @@ class Light
 
 	def brightness=(value)
 		@brightness = value
-	end
-	
-	def updateState
-		http = Curl.put(@baseUri + "/state", 
-			{"on" => @isOn,"bri" => @brightness.to_i,"ct" => @colorTemperature}.to_json)
-		puts http.body_str
 	end
 end
