@@ -16,7 +16,12 @@ class Group < Light
 		for light in @lights
 			light.isOn = @isOn
 			light.brightness = @brightness
-			light.colorTemperature = @colorTemperature
+			if @colorTemperature != nil
+				light.colorTemperature = @colorTemperature
+			elsif @hue != nil
+				light.hue = @hue
+				light.saturation = @saturation
+			end
 			light.updateState
 		end
 	end
