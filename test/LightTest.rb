@@ -1,10 +1,10 @@
 require 'json'
-require 'test/unit'
+require 'minitest/autorun'
 
 require_relative '../Light'
 require_relative '../LightBulb'
 
-class LightBulbTest < Test::Unit::TestCase
+class LightBulbTest < MiniTest::Unit::TestCase
 	LIGHT_UNDER_TEST = 1
 
 	def setup
