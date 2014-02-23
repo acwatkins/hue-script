@@ -1,4 +1,4 @@
-\#hue-script
+# hue-script
 
 A ruby script used to control Philips Hue
 
