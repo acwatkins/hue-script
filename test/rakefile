@@ -1,7 +1,0 @@
-#!/usr/bin/env ruby
-
-require 'rake/testtask'
-
-Rake::TestTask.new do |test|
-	test.pattern = "*Test.rb"
-end
