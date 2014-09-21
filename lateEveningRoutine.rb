@@ -2,7 +2,55 @@
 
 require 'rubygems'
 require 'huey'
-require_relative 'hueylevels'
+require_relative 'hueLevels.rb'
+require_relative 'Home.rb'
+
+home = new Home
+
+# 9:30 - 10:00
+puts "Beginning master bedroom 30 min transition to yellow sun"
+home.masterBedroom.update(rgb: RGB_YELLOW_SUN, bri: BRI_RELAX, transitiontime: 29 * 60 * 10)
+sleep(30 * 60)
+
+# 10:00 - 10:05
+puts "Beginning master bedroom 5 min transition to orange red low light"
+home.masterBedroom.update(rgb: RGB_ORANGE_RED, bri: 0, transitiontime: 4 * 60 * 10)
+sleep(5 * 60)
+
+# 10:05 - 10:15
+sleep(10 * 60)
+puts "Turning off master bedroom lights"
+home.masterBedroom.update(on: false)
+
+# 10:15 - 10:30
+sleep(15 * 60)
+
+# 10:30 - 10:50
+puts "Beginning family room 30 min transition to yellow sun"
+home.familyRoom.update(rgb: RGB_YELLOW_SUN, bri: BRI_RELAX, transitiontime: 19 * 60 * 10)
+sleep(20 * 60)
+
+# 10:50 - 11:00
+puts "Turning on end table light"
+home.masterBedroomHis(on: true, rgb: RGB_ORGANGE_RED, bri: 0)
+sleep(10 * 60)
+
+# 11:00 - 11:05
+puts "Beginning family room 5 min transition to orange red low light"
+home.familyRoom.update(rgb: RGB_ORANGE_RED, bri: 0, transitiontime: 4 * 60 * 10)
+sleep(5 * 60)
+
+# 11:05 - 11:15
+sleep(10 * 60)
+puts "Turning off lights"
+home.allLights.update(on: false)
+
+
+#!/usr/bin/env ruby
+
+require 'rubygems'
+require 'huey'
+require_relative 'hueLevels'
 require 'solareventcalculator'
 require 'tzinfo'
 
