@@ -34,5 +34,5 @@ sleep(60)
 
 # 6:14 - 6:15
 puts "Beginning 1 minute transition to Energize"
-home.masterBedroom.update(ct: CT_ENERGIZE, bri: BRI_ENERGIZE, transitiontime: 50 * 10)
+home.masterBedroom.update(ct: CT_ENERGIZE, bri: BRI_ENERGIZE, transitiontime: 51 * 10)
 sleep(60)
