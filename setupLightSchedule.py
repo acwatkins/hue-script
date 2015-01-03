@@ -2,13 +2,19 @@
 
 import datetime
 import huelevels
+import hues
+import logging
 import pytz
 import time
 from astral import Astral
 from phue import Bridge
 
+logging.basicConfig(level=logging.INFO)
+
 localtz = pytz.timezone ("America/New_York")
 
+schedule = hues.Schedule()
+schedule.setTimeZone("America/New_York")
 astral = Astral()
 astral.solar_depression = 'civil'
 city = astral["Orlando"]
@@ -16,6 +22,7 @@ sun = city.sun(date = datetime.date.today(), local = True)
 sunriseLightsOffTime = sun["sunrise"] + datetime.timedelta(minutes = 30)
 sunsetLightsOnTime = sun["sunset"] - datetime.timedelta(minutes = 60)
 
+allLights = ["FamilyRoomTorch", "FamilyRoomLeft", "FamilyRoomRight", "MasterBedroomHis", "MasterBedroomHers"]
 familyRoom = ["FamilyRoomTorch", "FamilyRoomLeft", "FamilyRoomRight"]
 masterBedroom = ["MasterBedroomHis", "MasterBedroomHers"]
 
@@ -27,118 +34,70 @@ def getUtcTimeString(hour, minute, second):
 	utcDateTime = localDateTime.astimezone(pytz.utc)
 	return utcDateTime.strftime("%Y-%m-%dT%H:%M:%S")
 
-def transitionRelaxToEnergize(beginHour, beginMinute, endHour, endMinute, groupName):
+def transitionRelaxToEnergize(beginHour, beginMinute, endHour, endMinute, lightNames):
 	endInMinutes = (endHour * 60) + endMinute
 	beginInMinutes = (beginHour * 60) + beginMinute
 
 	deltaTime = endInMinutes - beginInMinutes
 	minutesPerTransition = int(deltaTime / 3)
-	print("deltaTime: " + str(deltaTime))
-	print("minutesPerTransition: " + str(minutesPerTransition))
+	durationBetweenEventsInDeciseconds = minutesPerTransition * 60 * 10
+	transitionTimeInDeciseconds = (minutesPerTransition - 1) * 60 * 10
+	logging.info("deltaTime: " + str(deltaTime))
+	logging.info("minutesPerTransition: " + str(minutesPerTransition))
 
 	if (deltaTime > 2):
-		currentTime = datetime.datetime.now()
-		currentTime = currentTime.replace(hour = beginHour, minute = beginMinute, second = 0)
-
-		print(currentTime.strftime("%H:%M - " + groupName + " Fade in to reading"))
-		currentConfig = {'on': True, 'ct': huelevels.CT_READING, 'bri': huelevels.BRI_READING, 'transitiontime': (minutesPerTransition - 1) * 60 * 10}
-		bridge.create_group_schedule('ReadingMorning', getUtcTimeString(currentTime.hour, currentTime.minute, 0), groupName, currentConfig, 'TransitionToReading')
-
-		currentTime += datetime.timedelta(minutes = minutesPerTransition)
-
-		print(currentTime.strftime("%H:%M - " + groupName + " Fade in to white light"))
-		currentConfig = {'on': True, 'hue': huelevels.HUE_WHITE, 'sat': huelevels.SAT_WHITE, 'bri': huelevels.BRI_ENERGIZE, 'transitiontime': (minutesPerTransition - 1) * 60 * 10}
-		bridge.create_group_schedule('WhiteMorning', getUtcTimeString(currentTime.hour, currentTime.minute, 0), groupName, currentConfig, 'TransitionToWhite')
-
-		currentTime += datetime.timedelta(minutes = minutesPerTransition)
-
-		print(currentTime.strftime("%H:%M - " + groupName + " Fade in to energize"))
-		currentConfig = {'on': True, 'ct': huelevels.CT_ENERGIZE, 'bri': huelevels.BRI_ENERGIZE, 'transitiontime': 30 * 10}
-		bridge.create_group_schedule('EnergizeMorning', getUtcTimeString(currentTime.hour, currentTime.minute, 0), groupName, currentConfig, 'TransitionToEnergize')
+		schedule.addGroupEvent(beginHour, beginMinute, 0, lightNames, 'reading', transitionTimeInDeciseconds)
+		schedule.addGroupEventByOffsetToLast(durationBetweenEventsInDeciseconds, lightNames, 'white', transitionTimeInDeciseconds)
+		schedule.addGroupEventByOffsetToLast(durationBetweenEventsInDeciseconds, lightNames, 'energize', transitionTimeInDeciseconds)
 	else:
-		currentTime = sunriseLightsOffTime - datetime.timedelta(minutes = 1)
-		print(currentTime.strftime("%H:%M - " + groupName + " Turning lights immediately to energize"))
-		currentConfig = {'on': True, 'ct': huelevels.CT_ENERGIZE, 'bri': huelevels.BRI_ENERGIZE, 'transitiontime': (minutesPerTransition - 1) * 60 * 10}
-		bridge.create_group_schedule('EnergizeMorning', getUtcTimeString(currentTime.hour, currentTime.minute, 0), groupName, currentConfig, 'TransitionToEnergize')
+		schedule.addGroupEvent(endHour, endMinute - 1, 0, lightNames, 'energize', 0)
 
-
-def transitionEnergizeToRelax(beginHour, beginMinute, endHour, endMinute, groupName):
+def transitionEnergizeToRelax(beginHour, beginMinute, endHour, endMinute, lightNames):
 	endInMinutes = (endHour * 60) + endMinute
 	beginInMinutes = (beginHour * 60) + beginMinute
 
 	deltaTime = endInMinutes - beginInMinutes
 	minutesPerTransition = int(deltaTime / 4)
-	print("deltaTime: " + str(deltaTime))
-	print("minutesPerTransition: " + str(minutesPerTransition))
+	durationBetweenEventsInDeciseconds = minutesPerTransition * 60 * 10
+	transitionTimeInDeciseconds = (minutesPerTransition - 1) * 60 * 10
+	logging.info("deltaTime: " + str(deltaTime))
+	logging.info("minutesPerTransition: " + str(minutesPerTransition))
 
-	currentTime = datetime.datetime.now()
-	currentTime = currentTime.replace(hour = beginHour, minute = beginMinute, second = 0)
+	schedule.addGroupEvent(beginHour, beginMinute, 0, lightNames, 'white', 30 * 10)
+	schedule.addGroupEventByOffsetToLast(durationBetweenEventsInDeciseconds, lightNames, 'reading', transitionTimeInDeciseconds)
+	schedule.addGroupEventByOffsetToLast(durationBetweenEventsInDeciseconds, lightNames, 'relax', transitionTimeInDeciseconds)
 
-	print(currentTime.strftime("%H:%M - " + groupName + " Fade out to white light"))
-	currentConfig = {'on': True, 'hue': huelevels.HUE_WHITE, 'sat': huelevels.SAT_WHITE, 'bri': huelevels.BRI_ENERGIZE, 'transitiontime': 30 * 10}
-	bridge.create_group_schedule('WhiteEvening', getUtcTimeString(currentTime.hour, currentTime.minute, 0), groupName, currentConfig, 'TransitionToWhite')
-
-	currentTime += datetime.timedelta(minutes = minutesPerTransition)
-
-	print(currentTime.strftime("%H:%M - " + groupName + " Fade out to reading"))
-	currentConfig = {'on': True, 'ct': huelevels.CT_READING, 'bri': huelevels.BRI_READING, 'transitiontime': (minutesPerTransition - 1) * 60 * 10}
-	bridge.create_group_schedule('ReadingEvening', getUtcTimeString(currentTime.hour, currentTime.minute, 0), groupName, currentConfig, 'TransitionToReading')
-
-	currentTime += datetime.timedelta(minutes = minutesPerTransition * 2)
-
-	print(currentTime.strftime("%H:%M - " + groupName + " Fade out to relax"))
-	currentConfig = {'on': True, 'ct': huelevels.CT_RELAX, 'bri': huelevels.BRI_RELAX, 'transitiontime': (minutesPerTransition - 1) * 60 * 10}
-	bridge.create_group_schedule('RelaxEvening', getUtcTimeString(currentTime.hour, currentTime.minute, 0), groupName, currentConfig, 'TransitionToReading')
-
-def morningRoutine(beginHour, beginMinute, groupName):
+def morningRoutine(beginHour, beginMinute, lightNames):
 	currentTime = datetime.datetime.now()
 	currentTime = currentTime.replace(hour = beginHour, minute = beginMinute, second = 0)
 	currentTime = localtz.localize(currentTime)#, is_dst=None)
 
 	if (currentTime < sunriseLightsOffTime):
-		print(currentTime.strftime("%H:%M - " + groupName + " Turn on lights low red"))
-		currentConfig = {'on': True, 'hue': huelevels.HUE_ORANGE_RED, 'sat': huelevels.SAT_ORANGE_RED, 'bri': 1, 'transitiontime': 0}
-		bridge.create_group_schedule('OrangeRedOn', getUtcTimeString(currentTime.hour, currentTime.minute, 0), groupName, currentConfig, 'OnOrangeRed')
+		schedule.addGroupEvent(currentTime.hour, currentTime.minute, currentTime.second, lightNames, 'orangeLow', 0)
 
 	currentTime += datetime.timedelta(minutes = 15)
 
 	if (currentTime < sunriseLightsOffTime):
-		print(currentTime.strftime("%H:%M - " + groupName + " Fade in to yellow sun"))
-		currentConfig = {'on': True, 'hue': huelevels.HUE_YELLOW_SUN, 'sat': huelevels.SAT_YELLOW_SUN, 'bri': huelevels.BRI_RELAX, 'transitiontime': 9 * 60 * 10}
-		bridge.create_group_schedule('YellowSun10Min', getUtcTimeString(currentTime.hour, currentTime.minute, 0), groupName, currentConfig, 'FadeInYellowSun')
+		schedule.addGroupEvent(currentTime.hour, currentTime.minute, currentTime.second, lightNames, 'yellowSun', 9 * 60 * 10)
 
 	currentTime += datetime.timedelta(minutes = 10)
 
 	if (currentTime < sunriseLightsOffTime):
-		print(currentTime.strftime("%H:%M - " + groupName + " Fade in to relax"))
-		currentConfig = {'on': True, 'ct': huelevels.CT_RELAX, 'bri': huelevels.BRI_RELAX, 'transitiontime': 4 * 60 * 10}
-		bridge.create_group_schedule('Relax5Min', getUtcTimeString(currentTime.hour, currentTime.minute, 0), groupName, currentConfig, 'TransitionToRelax')
+		schedule.addGroupEvent(currentTime.hour, currentTime.minute, currentTime.second, lightNames, 'relax', 4 * 60 * 10)
 
 	currentTime += datetime.timedelta(minutes = 5)
-	transitionRelaxToEnergize(currentTime.hour, currentTime.minute, sun["sunrise"].hour, sun["sunrise"].minute, groupName)
+	transitionRelaxToEnergize(currentTime.hour, currentTime.minute, sun["sunrise"].hour, sun["sunrise"].minute, lightNames)
 
-def bedTimeRoutine(beginHour, beginMinute, groupName):
+def bedTimeRoutine(beginHour, beginMinute, lightNames):
 	currentTime = datetime.datetime.now()
 	currentTime = currentTime.replace(hour = beginHour, minute = beginMinute, second = 0)
 
-	print(currentTime.strftime("%H:%M - " + groupName + " Fade out to yellow sun"))
-	currentConfig = {'on': True, 'hue': huelevels.HUE_YELLOW_SUN, 'sat': huelevels.SAT_YELLOW_SUN, 'bri': huelevels.BRI_RELAX, 'transitiontime': 29 * 60 * 10}
-	bridge.create_group_schedule('YellowEvening', getUtcTimeString(currentTime.hour, currentTime.minute, 0), groupName, currentConfig, 'FadeOutYellowSun')
-
-	currentTime += datetime.timedelta(minutes = 30)
-
-	print(currentTime.strftime("%H:%M - " + groupName + " Fade out to low orange red"))
-	currentConfig = {'on': True, 'hue': huelevels.HUE_ORANGE_RED, 'sat': huelevels.SAT_ORANGE_RED, 'bri': 0, 'transitiontime': 14 * 60 * 10}
-	bridge.create_group_schedule('RedEvening', getUtcTimeString(currentTime.hour, currentTime.minute, 0), groupName, currentConfig, 'FaidOutOrangeRed')
-
-	currentTime += datetime.timedelta(minutes = 30)
-
-	print(currentTime.strftime("%H:%M - " + groupName + " Turn off lights"))
-	currentConfig = {'on': False, 'hue': huelevels.HUE_ORANGE_RED, 'sat': huelevels.SAT_ORANGE_RED, 'bri': 0, 'transitiontime': 0}
-	bridge.create_group_schedule('OffEvening', getUtcTimeString(currentTime.hour, currentTime.minute, 0), groupName, currentConfig, 'TurnOffLights')
+	schedule.addGroupEvent(currentTime.hour, currentTime.minute, currentTime.second, lightNames, 'yellowSun', 29 * 60 * 10)
+	schedule.addGroupEventByOffsetToLast(30 * 60 * 10, lightNames, 'orangeLow', 15 * 60 * 10)
+	schedule.addGroupEventByOffsetToLast(30 * 60 * 10, lightNames, 'orangeLow', 0, lightOn = False)
 
 bridge = Bridge('huebridge', 'newdeveloper')
-#bridge.connect()
+# bridge.connect()
 #bridge.get_api()
 
 # lightsByName = bridge.get_light_objects('name')
@@ -146,53 +105,41 @@ bridge = Bridge('huebridge', 'newdeveloper')
 # 	print(str(light))
 
 schedules = bridge.get_schedule()
-print("Removing old schedules")
-for schedule in schedules:
-	print(str(schedule))
-	bridge.delete_schedule(schedule)
+logging.info("Removing old schedules")
+for i in schedules:
+	bridge.delete_schedule(i)
 
 weekday = datetime.datetime.now().weekday()
 if (weekday == 1 or weekday == 5 or weekday == 6):
-	print("05:45 MasterBedroom Turn on lights low red")
-	currentConfig = {'on': True, 'hue': huelevels.HUE_ORANGE_RED, 'sat': huelevels.SAT_ORANGE_RED, 'bri': 1, 'transitiontime': 0}
-	bridge.create_group_schedule('Wakeup', getUtcTimeString(5, 45, 0), 'MasterBedroom', currentConfig, 'OnOrangeRed')
+	schedule.addGroupEvent(5, 45, 0, masterBedroom, 'orangeLow', 0, lightOn = True)
+	schedule.addGroupEvent(6, 15, 0, masterBedroom, 'orangeLow', 0, lightOn = False)
 
-	print("06:15 MasterBedroom Turn off lights")
-	currentConfig = {'on': False, 'hue': huelevels.HUE_ORANGE_RED, 'sat': huelevels.SAT_ORANGE_RED, 'bri': 1, 'transitiontime': 0}
-	bridge.create_group_schedule('Wakeup', getUtcTimeString(6, 15, 0), 'MasterBedroom', currentConfig, 'OnOrangeRed')
-
-	morningRoutine(5, 45, "FamilyRoom")
-	morningRoutine(6, 45, "MasterBedroom")
+	morningRoutine(5, 45, familyRoom)
+	morningRoutine(6, 45, masterBedroom)
 else:
-	morningRoutine(5, 45, "All")
+	morningRoutine(5, 45, allLights)
 
-print("sunrise is at " + str(sun["sunrise"]))
-print(sunriseLightsOffTime.strftime("%H:%M:%S turn off lights"))
-currentConfig = {'on': False, 'ct': huelevels.CT_ENERGIZE, 'bri': 0, 'transitiontime': 30 * 60 * 10}
-bridge.create_group_schedule('Wakeup', getUtcTimeString(sunriseLightsOffTime.hour, sunriseLightsOffTime.minute, 0), 'All', currentConfig, 'TurnOffLights')
+logging.info("sunrise is at " + str(sun["sunrise"]))
+logging.info(sunriseLightsOffTime.strftime("%H:%M:%S turn off lights"))
+schedule.addGroupEvent(sunriseLightsOffTime.hour, sunriseLightsOffTime.minute, sunriseLightsOffTime.second, allLights, 'energize', 30 * 60 * 10, lightOn = False)
 
-print(sunsetLightsOnTime.strftime("%H:%M:%S turn on lights"))
-currentConfig = {'on': True, 'ct': huelevels.CT_ENERGIZE, 'bri': huelevels.BRI_ENERGIZE, 'transitiontime': 30 * 60 * 10}
-bridge.create_group_schedule('Evening', getUtcTimeString(sunsetLightsOnTime.hour, sunsetLightsOnTime.minute, 0), 'All', currentConfig, 'TurnOffLights')
+logging.info(sunsetLightsOnTime.strftime("%H:%M:%S turn on lights"))
+schedule.addGroupEvent(sunsetLightsOnTime.hour, sunsetLightsOnTime.minute, sunriseLightsOffTime.second, allLights, 'energize', 30 * 60 * 10, lightOn = True)
 
-print("sunset is at " + str(sun["sunset"]))
-transitionEnergizeToRelax(sun["sunset"].hour, sun["sunset"].minute, 21, 0, "All")
+logging.info("sunset is at " + str(sun["sunset"]))
+transitionEnergizeToRelax(sun["sunset"].hour, sun["sunset"].minute, 21, 0, allLights)
 
 if (weekday == 4 or weekday == 5):
-	bedTimeRoutine(21, 30, "MasterBedroom")
-	bedTimeRoutine(22, 30, "FamilyRoom")
+	bedTimeRoutine(21, 30, masterBedroom)
+	bedTimeRoutine(22, 30, familyRoom)
+	schedule.addEvent(22, 55, 0, 'MasterBedroomHis', 'orangeLow', 0, lightOn = True)
+	schedule.addEvent(23, 30, 0, 'MasterBedroomHis', 'orangeLow', 0, lightOn = False)
 else:
-	bedTimeRoutine(21, 30, "All")
+	bedTimeRoutine(21, 30, allLights)
 
 if (weekday == 0):
-	print("23:00 - FamilyRoom, Turning on lights relax")
-	currentConfig = {'on': True, 'ct': huelevels.CT_RELAX, 'bri': huelevels.BRI_RELAX, 'transitiontime': 0}
-	bridge.create_group_schedule('Wakeup', getUtcTimeString(23, 0, 0), 'FamilyRoom', currentConfig, 'TurnOffLights')	
+	schedule.addGroupEvent(23, 0, 0, familyRoom, 'relax', 60 * 10, lightOn = True)
+	schedule.addEvent(23, 0, 0, 'MasterBedroomHis', 'orangeLow', 0, lightOn = True)
 
-	print("23:00 - MasterBedroom, Turning on lights low orange-red")
-	currentConfig = {'on': True, 'hue': huelevels.HUE_ORANGE_RED, 'sat': huelevels.SAT_ORANGE_RED, 'bri': 1, 'transitiontime': 0}
-	bridge.create_schedule('Wakeup', getUtcTimeString(23, 0, 0), 'MasterBedroomHis', currentConfig, 'OnOrangeRed')
-
-	print("23:30 - Turning off lights")
-	currentConfig = {'on': False, 'hue': huelevels.HUE_ORANGE_RED, 'sat': huelevels.SAT_ORANGE_RED, 'bri': 1, 'transitiontime': 29 * 60 * 10}
-	bridge.create_group_schedule('Wakeup', getUtcTimeString(23, 30, 0), 'All', currentConfig, 'OffOrangeRed')
+	schedule.addGroupEvent(23, 30, 0, familyRoom, 'orangeLow', 30 * 60 * 10, lightOn = False)
+	schedule.addGroupEvent(23, 59, 0, 'MasterBedroomHis', 'orangeLow', 0, lightOn = False)
