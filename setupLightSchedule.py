@@ -11,23 +11,38 @@ from phue import Bridge
 
 logging.basicConfig(level=logging.INFO)
 
-localtz = pytz.timezone ("America/New_York")
-
-schedule = hues.Schedule()
-schedule.setTimeZone("America/New_York")
+hues.setTimezone(pytz.timezone("America/New_York"))
+schedule = hues.Schedule('huebridge', 'newdeveloper')
 astral = Astral()
 astral.solar_depression = 'civil'
 city = astral["Orlando"]
-sun = city.sun(date = datetime.date.today(), local = True)
-sunriseTime = sun["sunrise"] + datetime.timedelta(days = 1)
-sunriseLightsOffTime = sunriseTime + datetime.timedelta(minutes = 30)
-sunsetLightsOnTime = sun["sunset"] - datetime.timedelta(minutes = 60)
+sunToday = city.sun(date = datetime.date.today(), local = True)
+sunTomorrow = city.sun(date = datetime.date.today() + datetime.timedelta(days = 1), local = True)
+sunsetTime = sunToday["sunset"]
+sunriseTime = sunTomorrow["sunrise"]
+sunriseLightsTransitionTime = sunriseTime + datetime.timedelta(minutes = 30)
+sunriseLightsOffTime = sunriseTime + datetime.timedelta(minutes = 60)
+sunsetLightsOnTime = sunsetTime - datetime.timedelta(minutes = 60)
 
-allLights = ["FamilyRoomTorch", "FamilyRoomLeft", "FamilyRoomRight", "MasterBedroomHis", "MasterBedroomHers"]
-familyRoom = ["FamilyRoomTorch", "FamilyRoomLeft", "FamilyRoomRight"]
-masterBedroom = ["MasterBedroomHis", "MasterBedroomHers"]
+allLights = ["MasterBedroomHers", "FamilyRoomLeft", "FamilyRoomRight", "MasterBedroomHis", "FamilyRoomTorch"]
+familyRoom = ["FamilyRoomLeft", "FamilyRoomRight", "FamilyRoomTorch"]
+masterBedroom = ["MasterBedroomHers", "MasterBedroomHis"]
 
 def transitionRelaxToEnergize(beginDateTime, endDateTime, lightNames):
+	logging.info("Transitioning from Relax to Energize")
+	logging.info("beginDateTime: " + str(beginDateTime))
+	logging.info("endDateTime: " + str(endDateTime))
+
+	if (endDateTime > sunriseTime):
+		logging.info("endDateTime after sunrise, reseting to sunrise")
+		endDateTime = sunriseTime
+
+	if (endDateTime < beginDateTime):
+		logging.info("transition time negative, setting end time to latest")
+		endDateTime = sunriseLightsTransitionTime
+		logging.info("beginDateTime: " + str(beginDateTime))
+		logging.info("endDateTime: " + str(endDateTime))
+
 	deltaDateTime = endDateTime - beginDateTime
 	deltaDateTimeInSeconds = deltaDateTime / datetime.timedelta(seconds = 1)
 
@@ -37,14 +52,16 @@ def transitionRelaxToEnergize(beginDateTime, endDateTime, lightNames):
 	logging.info("deltaTime: " + str(deltaDateTime))
 	logging.info("minutesPerTransition: " + str(secondsPerTransition / 60))
 
-	if (deltaDateTimeInSeconds > 0):
+	if (deltaDateTimeInSeconds > 0 and endDateTime <= sunriseLightsTransitionTime):
 		schedule.addGroupEvent(beginDateTime, lightNames, 'reading', transitionTimeInDeciseconds)
 		schedule.addGroupEventByOffsetToLast(durationBetweenEventsInDeciseconds, lightNames, 'white', transitionTimeInDeciseconds)
 		schedule.addGroupEventByOffsetToLast(durationBetweenEventsInDeciseconds, lightNames, 'energize', transitionTimeInDeciseconds)
-	else:
-		schedule.addGroupEvent(endDateTime - datetime.timedelta(minutes = 1), 0, lightNames, 'energize', 0)
+		schedule.addGroupEvent(sunriseLightsTransitionTime, lightNames, 'energize', 30 * 60 * 10)
 
 def transitionEnergizeToRelax(beginDateTime, endDateTime, lightNames):
+	logging.info("Transitioning from Energize to Relax")
+	logging.debug("beginDateTime: " + str(beginDateTime))
+	logging.debug("endDateTime: " + str(endDateTime))
 	deltaDateTime = endDateTime - beginDateTime
 	deltaDateTimeInSeconds = deltaDateTime / datetime.timedelta(seconds = 1)
 
@@ -75,14 +92,19 @@ def morningRoutine(beginDateTime, lightNames):
 		schedule.addGroupEvent(currentTime, lightNames, 'relax', 4 * 60 * 10)
 
 	currentTime += datetime.timedelta(minutes = 5)
-	transitionRelaxToEnergize(currentTime, sunriseTime, lightNames)
+	endTime = currentTime + datetime.timedelta(minutes = 15)
+	transitionRelaxToEnergize(currentTime, endTime, lightNames)
 
 def bedTimeRoutine(beginDateTime, lightNames):
 	currentTime = beginDateTime
 
 	schedule.addGroupEvent(currentTime, lightNames, 'yellowSun', 29 * 60 * 10)
-	schedule.addGroupEventByOffsetToLast(30 * 60 * 10, lightNames, 'orangeLow', 15 * 60 * 10)
-	schedule.addGroupEventByOffsetToLast(30 * 60 * 10, lightNames, 'orangeLow', 0, lightOn = False)
+	currentTime += datetime.timedelta(minutes = 30)
+	schedule.addGroupEvent(currentTime, lightNames, 'orangeLow', 15 * 60 * 10)
+	currentTime += datetime.timedelta(minutes = 20)
+	for light in lightNames:
+		schedule.addEvent(currentTime, light, 'orangeLow', 0, lightOn = False)
+		currentTime += datetime.timedelta(minutes = 5)
 
 def setupSchedule(bedTimeHis, bedTimeHers, sleepDurationHis, sleepDurationHers):
 	bridge = Bridge('huebridge', 'newdeveloper')
@@ -101,8 +123,8 @@ def setupSchedule(bedTimeHis, bedTimeHers, sleepDurationHis, sleepDurationHers):
 	logging.info(sunsetLightsOnTime.strftime("%H:%M:%S turn on lights"))
 	schedule.addGroupEvent(sunsetLightsOnTime, allLights, 'energize', 30 * 60 * 10, lightOn = True)
 
-	logging.info("sunset is at " + str(sun["sunset"]))
-	transitionEnergizeToRelax(sun["sunset"], bedTimeHers - datetime.timedelta(hours = 1), allLights)
+	logging.info("sunset is at " + str(sunsetTime))
+	transitionEnergizeToRelax(sunsetTime, bedTimeHers - datetime.timedelta(hours = 1), allLights)
 
 	bedTimeStartTimeMasterBedroom = bedTimeHers - datetime.timedelta(minutes = 30)
 	bedTimeStartTimeFamilyRoom = bedTimeHis - datetime.timedelta(minutes = 30)
@@ -110,7 +132,7 @@ def setupSchedule(bedTimeHis, bedTimeHers, sleepDurationHis, sleepDurationHers):
 		bedTimeRoutine(bedTimeStartTimeMasterBedroom, masterBedroom)
 		bedTimeRoutine(bedTimeStartTimeFamilyRoom, familyRoom)
 
-		turnOnMasterBedroomLightTime = bedTimeHis - datetime.timedelta(minutes = 5)
+		turnOnMasterBedroomLightTime = bedTimeHis - datetime.timedelta(minutes = 15)
 		turnOffMasterBedroomLightTime = bedTimeHis + datetime.timedelta(minutes = 30)
 		schedule.addEvent(turnOnMasterBedroomLightTime, 'MasterBedroomHis', 'orangeLow', 0, lightOn = True)
 		schedule.addEvent(turnOffMasterBedroomLightTime, 'MasterBedroomHis', 'orangeLow', 0, lightOn = False)
@@ -132,22 +154,21 @@ def setupSchedule(bedTimeHis, bedTimeHers, sleepDurationHis, sleepDurationHers):
 		lightsOnTime = wakeUpTimeHers - datetime.timedelta(minutes = 15)
 		morningRoutine(lightsOnTime, allLights)
 
-	logging.info("sunrise is at " + str(sun["sunrise"]))
+	logging.info("sunrise is at " + str(sunriseTime))
 	logging.info(sunriseLightsOffTime.strftime("%H:%M:%S turn off lights"))
-	schedule.addGroupEvent(sunriseLightsOffTime, allLights, 'energize', 30 * 60 * 10, lightOn = False)
+	schedule.addGroupEvent(sunriseLightsOffTime, allLights, 'energize', 0, lightOn = False)
 
 
 if __name__ == '__main__':
 	weekday = datetime.datetime.now().weekday()
-	bedTimeHers = schedule.getLocalDateTime(22, 0, 0)
+	bedTimeHers = hues.LocalDateTime(22, 0, 0)
 	bedTimeHis = bedTimeHers
 	sleepDurationHis = 8
 	sleepDurationHers = 8
 	if (weekday == 4 or weekday == 5):
-		bedTimeHis = schedule.getLocalDateTime(23, 0, 0)
+		bedTimeHis = hues.LocalDateTime(23, 0, 0)
 	elif (weekday == 0):
-		bedTimeHis = schedule.getLocalDateTime(0, 0, 0)
-		bedTimeHis += datetime.timedelta(days = 1)
+		bedTimeHis = hues.LocalDateTime(0, 0, 0, datetime.datetime.today() + datetime.timedelta(days = 1))
 		sleepDurationHis = 7
 
 	setupSchedule(bedTimeHis, bedTimeHers, sleepDurationHis, sleepDurationHers)

@@ -1,0 +1,3 @@
+[submodule "hues"]
+	path = hues
+	url = https://github.com/acwatkins/hues.git
