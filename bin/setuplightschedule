@@ -75,6 +75,7 @@ def setupSchedule(bedTimeHis, bedTimeHers, sleepDurationHis, sleepDurationHers):
 
 	wakeUpTimeHis = bedTimeHis + datetime.timedelta(hours = sleepDurationHis)
 	wakeUpTimeHers = bedTimeHers + datetime.timedelta(hours = sleepDurationHers)
+	lightsOnTime = wakeUpTimeHers - datetime.timedelta(minutes = 15)
 	if (wakeUpTimeHis != wakeUpTimeHers):
 		lightsOnHers = wakeUpTimeHers - datetime.timedelta(minutes = 15)
 		lightsOffHers = wakeUpTimeHers + datetime.timedelta(minutes = 30)
@@ -94,13 +95,13 @@ def setupSchedule(bedTimeHis, bedTimeHers, sleepDurationHis, sleepDurationHers):
 if __name__ == '__main__':
 	weekday = datetime.datetime.now().weekday()
 	bedTimeHers = hues.LocalDateTime(22, 0, 0)
-	bedTimeHis = hues.LocalDateTime(0, 30, 0, datetime.datetime.today() + datetime.timedelta(days = 1))
+	bedTimeHis = hues.LocalDateTime(22, 0, 0)#, datetime.datetime.today() + datetime.timedelta(days = 1))
 	sleepDurationHis = 8
 	sleepDurationHers = 8
-	# if (weekday == 4 or weekday == 5):
-	# 	bedTimeHis = hues.LocalDateTime(23, 0, 0)
-	# elif (weekday == 0):
-	# 	bedTimeHis = hues.LocalDateTime(0, 0, 0, datetime.datetime.today() + datetime.timedelta(days = 1))
-	# 	sleepDurationHis = 7
+	if (weekday == 4 or weekday == 5):
+		bedTimeHis = hues.LocalDateTime(23, 0, 0)
+	elif (weekday == 0):
+		bedTimeHis = hues.LocalDateTime(0, 0, 0, datetime.datetime.today() + datetime.timedelta(days = 1))
+		sleepDurationHis = 7
 
 	setupSchedule(bedTimeHis, bedTimeHers, sleepDurationHis, sleepDurationHers)
