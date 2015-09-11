@@ -31,8 +31,8 @@ def wakeupRoutine(beginDateTime, lightNames):
 	currentTime = beginDateTime - datetime.timedelta(minutes=15)
 
 	if (beginDateTime < sunriseTime):
-		schedule.addEvent(currentTime, lightNames, 'orangeLow', 0, lightOn = True)
-		schedule.addEvent(beginDateTime, lightNames, [ 'orangeLow', 'yellowSun', 'relax', 'reading', 'white' ], endDateTime=sunriseTime, lightOn = True)
+		schedule.addEvent(currentTime, lightNames, 'red', 0, lightOn = True)
+		schedule.addEvent(beginDateTime, lightNames, [ 'red', 'yellowSun', 'relax', 'reading', 'white' ], endDateTime=sunriseTime, lightOn = True)
 		schedule.addEvent(sunriseTime, lightNames, 'energize', 30 * 10, lightOn = True)
 
 def bedTimeRoutine(beginDateTime, lightNames):
@@ -42,7 +42,7 @@ def bedTimeRoutine(beginDateTime, lightNames):
 
 	currentTime += datetime.timedelta(minutes = 20)
 	for light in lightNames:
-		schedule.addEvent(currentTime, light, 'orangeLow', 0, lightOn = False)
+		schedule.addEvent(currentTime, light, 'red', 0, lightOn = False)
 		currentTime += datetime.timedelta(minutes = 5)
 
 def setupSchedule(bedTimeHis, bedTimeHers, sleepDurationHis, sleepDurationHers):
@@ -68,9 +68,12 @@ def setupSchedule(bedTimeHis, bedTimeHers, sleepDurationHis, sleepDurationHers):
 	startTransition = sunsetTime + datetime.timedelta(minutes=15)
 
 	schedule.addEvent(startTransition, masterBedroom, [ 'white', 'reading', 'reading', 'relax', 'yellowSun' ], endDateTime=bedTimeHers)
-	schedule.addEvent(bedTimeHers, masterBedroom, 'orangeLow', 15 * 60 * 10)
-	bedTimeRoutine(bedTimeHers, 'MasterBedroomHers')
+	schedule.addEvent(bedTimeHers, masterBedroom, 'red', 15 * 60 * 10)
+	bedTimeRoutine(bedTimeHers, masterBedroom)
+
 	schedule.addEvent(startTransition, familyRoom, [ 'white', 'reading', 'reading', 'relax', 'yellowSun' ], endDateTime=bedTimeHis)
+	schedule.addEvent(bedTimeHis - datetime.timedelta(minutes=5), 'MasterBedroomHis', 'red', 0, lightOn = True)
+	schedule.addEvent(bedTimeHis, familyRoom, 'red', 15 * 60 * 10)
 	bedTimeRoutine(bedTimeHis, familyRoom + ['MasterBedroomHis'])
 
 	wakeUpTimeHis = bedTimeHis + datetime.timedelta(hours = sleepDurationHis)
@@ -79,8 +82,8 @@ def setupSchedule(bedTimeHis, bedTimeHers, sleepDurationHis, sleepDurationHers):
 	if (wakeUpTimeHis != wakeUpTimeHers):
 		lightsOnHers = wakeUpTimeHers - datetime.timedelta(minutes = 15)
 		lightsOffHers = wakeUpTimeHers + datetime.timedelta(minutes = 30)
-		schedule.addEvent(lightsOnHers, 'MasterBedroomHers', 'orangeLow', 0, lightOn = True)
-		schedule.addEvent(lightsOffHers, 'MasterBedroomHers', 'orangeLow', 0, lightOn = False)
+		schedule.addEvent(lightsOnHers, 'MasterBedroomHers', 'red', 0, lightOn = True)
+		schedule.addEvent(lightsOffHers, 'MasterBedroomHers', 'red', 0, lightOn = False)
 
 		wakeupRoutine(wakeUpTimeHers, familyRoom)
 		wakeupRoutine(wakeUpTimeHis, masterBedroom)
@@ -98,10 +101,13 @@ if __name__ == '__main__':
 	bedTimeHis = hues.LocalDateTime(22, 0, 0)#, datetime.datetime.today() + datetime.timedelta(days = 1))
 	sleepDurationHis = 8
 	sleepDurationHers = 8
-	if (weekday == 4 or weekday == 5):
-		bedTimeHis = hues.LocalDateTime(23, 0, 0)
-	elif (weekday == 0):
+	weekNumber = hues.LocalDateTime(0, 0, 0).isocalendar()[1]
+	logging.info("weekNumber: " + str(weekNumber))
+	isOffFriday = weekNumber % 2 != 0
+	if (weekday == 4 or weekday == 5 or weekday == 0 or (isOffFriday and weekday == 3)):
 		bedTimeHis = hues.LocalDateTime(0, 0, 0, datetime.datetime.today() + datetime.timedelta(days = 1))
+	
+	if (weekday == 0):
 		sleepDurationHis = 7
 
 	setupSchedule(bedTimeHis, bedTimeHers, sleepDurationHis, sleepDurationHers)
