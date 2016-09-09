@@ -79,16 +79,17 @@ def setupSchedule(bedTimeHis, bedTimeHers, sleepDurationHis, sleepDurationHers):
 	startTransition = sunsetTime + datetime.timedelta(minutes=15)
 
 	schedule.addEvent(startTransition, masterBedroom, [ 'white', 'reading', 'reading', 'relax', 'yellowSun' ], endDateTime=bedTimeHers)
-	schedule.addEvent(bedTimeHers, masterBedroom, [ 'orangeLow', 'redLowest' ], endDateTime=bedTimeHers + datetime.timedelta(minutes=15))
+	schedule.addEvent(bedTimeHers, masterBedroom, [ 'orangeLow', 'redLowest' ], endDateTime=bedTimeHers + datetime.timedelta(minutes=5))
 	schedule.addEvent(startTransition, familyRoom, [ 'white', 'reading', 'reading', 'relax', 'yellowSun' ], endDateTime=bedTimeHis)
-	schedule.addEvent(bedTimeHis, familyRoom, [ 'orangeLow', 'redLowest' ], endDateTime=bedTimeHis + datetime.timedelta(minutes=15))
+	schedule.addEvent(bedTimeHis, familyRoom, [ 'orangeLow', 'redLowest' ], endDateTime=bedTimeHis + datetime.timedelta(minutes=5))
 
 	if (bedTimeHis != bedTimeHers):
-		rotateEvent(bedTimeHers + datetime.timedelta(minutes = 20), masterBedroom, 'redLowest', 0, False)
+		rotateEvent(bedTimeHers + datetime.timedelta(minutes = 15), masterBedroom, 'redLowest', 0, False)
 		schedule.addEvent(bedTimeHis - datetime.timedelta(minutes=5), 'MasterBedroomHis', 'redLowest', 0, lightOn = True)
-		rotateEvent(bedTimeHis + datetime.timedelta(minutes = 20), familyRoom + ['MasterBedroomHis'], 'redLowest', 0, False)
+		rotateEvent(bedTimeHis + datetime.timedelta(minutes = 15), familyRoom, 'redLowest', 0, False)
+		schedule.addEvent(bedTimeHis + datetime.timedelta(minutes=15), 'MasterBedroomHis', 'redLowest', 0, lightOn = False)
 	else:
-		rotateEvent(bedTimeHers + datetime.timedelta(minutes = 20), allLights, 'redLowest', 0, False)
+		rotateEvent(bedTimeHers + datetime.timedelta(minutes = 15), allLights, 'redLowest', 0, False)
 
 	wakeUpTimeHis = bedTimeHis + datetime.timedelta(hours = sleepDurationHis)
 	wakeUpTimeHers = bedTimeHers + datetime.timedelta(hours = sleepDurationHers)
