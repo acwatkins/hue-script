@@ -1,0 +1,22 @@
+---
+defaultBedtime: &Default
+  bedtimeHis: "22:40"
+  bedtimeHers: "22:00"
+  sleepDurationHis: 8
+  sleepDurationHers: 8
+
+sunday:
+  <<: *Default
+monday:
+  <<: *Default
+tuesday:
+  <<: *Default
+wednesday:
+  <<: *Default
+  bedtimeHis: 23:40
+thursday:
+  <<: *Default
+friday:
+  <<: *Default
+saturday:
+  <<: *Default

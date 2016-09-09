@@ -3,10 +3,13 @@
 import datetime
 import hues
 import logging
+import os
 import pytz
 import time
+import yaml
 from astral import Astral
 from phue import Bridge
+from enum import Enum
 
 logging.basicConfig(level=logging.INFO)
 
@@ -105,19 +108,29 @@ def setupSchedule(bedTimeHis, bedTimeHers, sleepDurationHis, sleepDurationHers):
 	schedule.addEvent(sunriseLightsOffTime, allLights, 'energize', 0, lightOn = False)
 
 
+class Day(Enum):
+	monday = 0
+	tuesday = 1
+	wednesday = 2
+	thursday = 3
+	friday = 4
+	saturday = 5
+	sunday = 6
+
+def getDateTimeFromString(stringTime):
+	hour, minute = stringTime.split(':', 1)
+	return hues.LocalDateTime(int(hour), int(minute), 0)
+
 if __name__ == '__main__':
-	weekday = datetime.datetime.now().weekday()
-	bedTimeHers = hues.LocalDateTime(22, 0, 0)
-	bedTimeHis = hues.LocalDateTime(22, 0, 0)#, datetime.datetime.today() + datetime.timedelta(days = 1))
-	sleepDurationHis = 8
-	sleepDurationHers = 8
-	weekNumber = hues.LocalDateTime(0, 0, 0).isocalendar()[1]
-	logging.info("weekNumber: " + str(weekNumber))
-	isOffFriday = weekNumber % 2 != 0
-	if (weekday == 4 or weekday == 5 or (isOffFriday and weekday == 3)):
-		bedTimeHis = hues.LocalDateTime(23, 0, 0)
-	elif (weekday == 0):
-		bedTimeHis = hues.LocalDateTime(0, 0, 0, datetime.datetime.today() + datetime.timedelta(days = 1))
-		sleepDurationHis = 7
+	rootNode = None
+	with open(os.path.expanduser('~/.setuplightschedule'), 'r') as file:
+		rootNode = yaml.load(file.read())
+
+	weekday = Day(datetime.datetime.now().weekday())
+	weekdayNode = rootNode[weekday.name]
+	bedTimeHis = getDateTimeFromString(str(weekdayNode['bedtimeHis']))
+	bedTimeHers = getDateTimeFromString(str(weekdayNode['bedtimeHers']))
+	sleepDurationHis = int(weekdayNode['sleepDurationHis'])
+	sleepDurationHers = int(weekdayNode['sleepDurationHers'])
 
 	setupSchedule(bedTimeHis, bedTimeHers, sleepDurationHis, sleepDurationHers)
