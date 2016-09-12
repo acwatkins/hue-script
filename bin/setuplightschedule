@@ -30,20 +30,12 @@ allLights = ["FamilyRoomLeft", "MasterBedroomHers", "FamilyRoomRight", "FamilyRo
 familyRoom = ["FamilyRoomLeft", "FamilyRoomRight", "FamilyRoomTorch"]
 masterBedroom = ["MasterBedroomHers", "MasterBedroomHis"]
 
-def bedTimeRoutine(beginDateTime, lightNames):
+def rotateEvent(beginDateTime, lightNames, settingNames, transitionTimeInDeciseconds = None, lightOn = None):
 	if (isinstance(lightNames, str)):
 		lightNames = [lightNames]
 	currentTime = beginDateTime
 
-	currentTime += datetime.timedelta(minutes = 20)
 	for light in lightNames:
-		schedule.addEvent(currentTime, light, 'redLowest', 0, lightOn = False)
-		currentTime += datetime.timedelta(minutes = 5)
-
-def rotateEvent(beginDateTime, names, settingNames, transitionTimeInDeciseconds = None, lightOn = None):
-	currentTime = beginDateTime
-
-	for light in names:
 		schedule.addEvent(currentTime, light, settingNames, transitionTimeInDeciseconds = transitionTimeInDeciseconds, lightOn = lightOn)
 		currentTime += datetime.timedelta(minutes = 5)
 
@@ -75,27 +67,28 @@ def setupSchedule(bedTimeHis, bedTimeHers, sleepDurationHis, sleepDurationHers):
 
 	logging.info("sunset is at " + str(sunsetTime))
 
-	schedule.addEvent(sunsetTime, allLights, 'white', transitionTimeInDeciseconds=60 * 10)
+	schedule.addEvent(sunsetTime, allLights, 'white', transitionTimeInDeciseconds=30 * 10)
 	startTransition = sunsetTime + datetime.timedelta(minutes=15)
 
-	schedule.addEvent(startTransition, masterBedroom, [ 'white', 'reading', 'reading', 'relax', 'yellowSun' ], endDateTime=bedTimeHers)
-	schedule.addEvent(bedTimeHers, masterBedroom, [ 'orangeLow', 'redLowest' ], endDateTime=bedTimeHers + datetime.timedelta(minutes=5))
-	schedule.addEvent(startTransition, familyRoom, [ 'white', 'reading', 'reading', 'relax', 'yellowSun' ], endDateTime=bedTimeHis)
-	schedule.addEvent(bedTimeHis, familyRoom, [ 'orangeLow', 'redLowest' ], endDateTime=bedTimeHis + datetime.timedelta(minutes=5))
+	schedule.addEvent(startTransition, masterBedroom, [ 'white', 'reading', 'reading', 'relax' ], endDateTime=bedTimeHers - datetime.timedelta(minutes=30))
+	schedule.addEvent(startTransition, familyRoom, [ 'white', 'reading', 'reading', 'relax' ], endDateTime=bedTimeHis - datetime.timedelta(minutes=30))
+
+	schedule.addEvent(bedTimeHers - datetime.timedelta(minutes=5), masterBedroom, [ 'yellowSun', 'orangeLow', 'redLowest' ], endDateTime=bedTimeHers + datetime.timedelta(minutes=5))
+	schedule.addEvent(bedTimeHis - datetime.timedelta(minutes=5), familyRoom, [ 'yellowSun', 'orangeLow', 'redLowest' ], endDateTime=bedTimeHis + datetime.timedelta(minutes=5))
 
 	if (bedTimeHis != bedTimeHers):
-		rotateEvent(bedTimeHers + datetime.timedelta(minutes = 15), masterBedroom, 'redLowest', 0, False)
+		rotateEvent(bedTimeHers + datetime.timedelta(minutes = 10), masterBedroom, 'redLowest', 0, False)
 		schedule.addEvent(bedTimeHis - datetime.timedelta(minutes=5), 'MasterBedroomHis', 'redLowest', 0, lightOn = True)
-		rotateEvent(bedTimeHis + datetime.timedelta(minutes = 15), familyRoom, 'redLowest', 0, False)
-		schedule.addEvent(bedTimeHis + datetime.timedelta(minutes=15), 'MasterBedroomHis', 'redLowest', 0, lightOn = False)
+		rotateEvent(bedTimeHis + datetime.timedelta(minutes = 10), familyRoom, 'redLowest', 0, False)
+		schedule.addEvent(bedTimeHis + datetime.timedelta(minutes=10), 'MasterBedroomHis', 'redLowest', 0, lightOn = False)
 	else:
-		rotateEvent(bedTimeHers + datetime.timedelta(minutes = 15), allLights, 'redLowest', 0, False)
+		rotateEvent(bedTimeHers + datetime.timedelta(minutes = 10), allLights, 'redLowest', 0, False)
 
 	wakeUpTimeHis = bedTimeHis + datetime.timedelta(hours = sleepDurationHis)
 	wakeUpTimeHers = bedTimeHers + datetime.timedelta(hours = sleepDurationHers)
-	lightsOnHers = wakeUpTimeHers - datetime.timedelta(minutes = 15)
+	lightsOnHers = wakeUpTimeHers - datetime.timedelta(minutes = 5)
 	if (wakeUpTimeHis != wakeUpTimeHers):
-		lightsOffHers = wakeUpTimeHers + datetime.timedelta(minutes = 30)
+		lightsOffHers = wakeUpTimeHers + datetime.timedelta(minutes = 15)
 		schedule.addEvent(lightsOnHers, 'MasterBedroomHers', 'redLowest', 0, lightOn = True)
 		schedule.addEvent(lightsOffHers, 'MasterBedroomHers', 'redLowest', 0, lightOn = False)
 
