@@ -10,4 +10,4 @@ setup(name='setuplightschedule',
       author_email='acwatkins@gmail.com',
       license='GPL3',
       scripts=['bin/setuplightschedule'],
-      install_requires = ['hues>=0.0.0.2'])
+      install_requires = ['hues>=0.0.0.2', 'astral', 'pyyaml'])

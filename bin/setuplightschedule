@@ -14,7 +14,7 @@ from enum import Enum
 logging.basicConfig(level=logging.INFO)
 
 hues.setTimezone(pytz.timezone("America/New_York"))
-schedule = hues.Schedule('huebridge', 'newdeveloper')
+schedule = hues.Schedule('huebridge.lan', '9lTMEbMWsitYdujwGrwKqUlKtKMxpr4QKAmSrAvQ')
 astral = Astral()
 astral.solar_depression = 'civil'
 city = astral["Orlando"]
@@ -26,8 +26,9 @@ sunriseLightsTransitionTime = sunriseTime + datetime.timedelta(minutes = 30)
 sunriseLightsOffTime = sunriseTime + datetime.timedelta(minutes = 60)
 sunsetLightsOnTime = sunsetTime - datetime.timedelta(minutes = 60)
 
-allLights = ["FamilyRoomLeft", "MasterBedroomHers", "FamilyRoomRight", "FamilyRoomTorch", "MasterBedroomHis"]
-familyRoom = ["FamilyRoomLeft", "FamilyRoomRight", "FamilyRoomTorch"]
+allLights = ["FamilyRoomLeft", "LivingRoomLeft", "MasterBedroomHers", "FamilyRoomRight", "LivingRoomRight", "MasterBedroomHis"]
+familyRoom = ["FamilyRoomLeft", "FamilyRoomRight"]
+livingRoom = ["LivingRoomLeft", "LivingRoomRight"]
 masterBedroom = ["MasterBedroomHers", "MasterBedroomHis"]
 
 def bedTimeRoutine(beginDateTime, lightNames):
@@ -57,7 +58,7 @@ def wakeupRoutine(beginDateTime, lightNames):
 		schedule.addEvent(sunriseTime, lightNames, 'energize', 60 * 10, lightOn = True)
 
 def setupSchedule(bedTimeHis, bedTimeHers, sleepDurationHis, sleepDurationHers):
-	bridge = Bridge('huebridge', 'newdeveloper')
+	bridge = Bridge('huebridge', '9lTMEbMWsitYdujwGrwKqUlKtKMxpr4QKAmSrAvQ')
 	# bridge.connect()
 	#bridge.get_api()
 
@@ -67,8 +68,11 @@ def setupSchedule(bedTimeHis, bedTimeHers, sleepDurationHis, sleepDurationHers):
 
 	schedules = bridge.get_schedule()
 	logging.info("Removing old schedules")
-	for i in schedules:
-		bridge.delete_schedule(i)
+	if (schedules is not None):
+		for i in schedules:
+			print(str(i))
+			if (i is not None):
+				bridge.delete_schedule(i)
 
 	logging.info(sunsetLightsOnTime.strftime("%H:%M:%S turn on lights"))
 	schedule.addEvent(sunsetLightsOnTime, allLights, 'energize', transitionTimeInDeciseconds=30 * 60 * 10, lightOn = True)
